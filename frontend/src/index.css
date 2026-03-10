@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #1E2A3A transparent;
+}
+
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #1E2A3A; border-radius: 2px; }
+*::-webkit-scrollbar-thumb:hover { background: #2A3A4A; }
+
+body {
+  margin: 0;
+  background: #0A0E1A;
+  color: #E2E8F0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+.monaco-editor .overflow-guard { border-radius: 0; }

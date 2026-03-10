@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  githubId     String   @unique
+  username     String   @unique
+  displayName  String?
+  email        String?
+  avatarUrl    String?
+  githubToken  String   // stored as-is; encrypt in prod using KMS/vault
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedRooms   Room[]         @relation("RoomOwner")
+  memberships  RoomMember[]
+  messages     Message[]
+  commits      Commit[]
+  snapshots    CodeSnapshot[]
+
+  @@map("users")
+}
+
+model Room {
+  id           String    @id @default(uuid())
+  slug         String    @unique
+  name         String
+  language     Language  @default(JAVASCRIPT)
+  code         String    @default("") @db.Text
+  isPublic     Boolean   @default(true)
+  maxMembers   Int       @default(10)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  githubRepo   String?
+  githubBranch String?   @default("main")
+  githubPath   String?   @default("")
+
+  ownerId      String
+  owner        User      @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members      RoomMember[]
+  messages     Message[]
+  commits      Commit[]
+  snapshots    CodeSnapshot[]
+
+  @@map("rooms")
+}
+
+model RoomMember {
+  id        String   @id @default(uuid())
+  role      Role     @default(EDITOR)
+  joinedAt  DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  isOnline  Boolean  @default(false)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@map("room_members")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  content   String      @db.Text
+  type      MessageType @default(TEXT)
+  createdAt DateTime    @default(now())
+
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roomId    String
+  room      Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model CodeSnapshot {
+  id          String   @id @default(uuid())
+  code        String   @db.Text
+  language    Language
+  description String?
+  createdAt   DateTime @default(now())
+
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  savedBy     String
+  user        User     @relation(fields: [savedBy], references: [id], onDelete: Cascade)
+
+  @@map("code_snapshots")
+}
+
+model Commit {
+  id         String       @id @default(uuid())
+  message    String
+  sha        String?
+  githubUrl  String?
+  code       String       @db.Text
+  language   Language
+  status     CommitStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  roomId     String
+  room       Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  authorId   String
+  author     User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("commits")
+}
+
+model ExecutionLog {
+  id          String     @id @default(uuid())
+  language    Language
+  code        String     @db.Text
+  output      String?    @db.Text
+  stderr      String?    @db.Text
+  exitCode    Int?
+  executionMs Int?
+  status      ExecStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  roomId      String?
+
+  @@map("execution_logs")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum Language {
+  JAVASCRIPT
+  TYPESCRIPT
+  PYTHON
+  CPP
+  JAVA
+  GO
+  RUST
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  CODE_SNIPPET
+}
+
+enum CommitStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ExecStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  TIMEOUT
+}
